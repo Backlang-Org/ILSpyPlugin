@@ -3,15 +3,23 @@ using System.Reflection.Metadata;
 using System.Windows.Controls;
 
 using ICSharpCode.Decompiler;
+using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
+using ICSharpCode.Decompiler.Solution;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy;
+using ICSharpCode.AvalonEdit.Highlighting;
+using System.Windows.Media;
 
 namespace Backlang.Ilspy
 {
     [Export(typeof(Language))]
     public class CustomLanguage : Language
     {
+
+        HighlightingColor gray = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.DarkGray) };
+        HighlightingColor blue = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.Blue) };
+
         public override string Name
         {
             get
@@ -29,35 +37,95 @@ namespace Backlang.Ilspy
             }
         }
 
+        public override void DecompileType(ITypeDefinition type, ITextOutput output, DecompilationOptions options)
+        {
+            var smart = (ISmartTextOutput)output;
+            if (type.Namespace != null)
+            {
+                WriteKeyword(smart, "module");
+                smart.Write(type.Namespace + ";");
+            }
+
+            smart.WriteLine();
+
+            smart.WriteLine();
+
+            WriteKeyword(smart, "class");
+            smart.WriteReference(type, type.Name, true);
+            smart.Write(" ");
+
+            smart.MarkFoldStart();
+            smart.WriteLine("{");
+
+            smart.WriteLine();
+
+            smart.Indent();
+            foreach (var method in type.Methods)
+            {
+                DecompileMethod(method, smart, options);
+            }
+            smart.Unindent();
+
+            smart.WriteLine("}");
+            smart.MarkFoldEnd();
+        }
+
+        private void WriteKeyword(ISmartTextOutput smart, string keyword)
+        {
+            smart.BeginSpan(blue);
+            smart.Write(keyword + " ");
+            smart.EndSpan();
+        }
+
+
         // There are several methods available to override; in this sample, we deal with methods only
         public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
         {
+            var smart = (ISmartTextOutput)output;
+
             var module = ((MetadataModule)method.ParentModule).PEFile;
             var methodDef = module.Metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);
+
+            if (method.IsConstructor)
+            {
+                smart.BeginSpan(blue);
+                smart.WriteReference(method, "constructor", true);
+                smart.EndSpan();
+            }
+            else
+            {
+                WriteKeyword(smart, "func");
+                smart.WriteReference(method, method.Name, true);
+            }
+
+
+            smart.Write("(");
+
+            for (int i = 0; i < method.Parameters.Count; i++)
+            {
+                IParameter p = method.Parameters[i];
+
+                smart.Write(p.Name);
+                smart.Write(": ");
+                smart.WriteReference(p.Type, p.Type.Name);
+
+                if (i != method.Parameters.Count - 1)
+                {
+                    smart.Write(", ");
+                }
+            }
+
+            smart.WriteLine(") {");
+            smart.WriteLine("}");
+
             if (methodDef.HasBody())
             {
                 var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
-                output.WriteLine("Size of method: {0} bytes", methodBody.GetCodeSize());
 
-                ISmartTextOutput smartOutput = output as ISmartTextOutput;
-                if (smartOutput != null)
-                {
-                    // when writing to the text view (but not when writing to a file), we can even add UI elements such as buttons:
-                    smartOutput.AddButton(null, "Click me!", (sender, e) => (sender as Button).Content = "I was clicked!");
-                    smartOutput.WriteLine();
-                }
-
-                // ICSharpCode.Decompiler.CSharp.CSharpDecompiler can be used to decompile to C#.
-                /*
-                    ModuleDefinition module = LoadModule(assemblyFileName);
-                    var typeSystem = new DecompilerTypeSystem(module);
-                    CSharpDecompiler decompiler = new CSharpDecompiler(typeSystem, new DecompilerSettings());
-                    decompiler.AstTransforms.Add(new EscapeInvalidIdentifiers());
-                    SyntaxTree syntaxTree = decompiler.DecompileWholeModuleAsSingleFile();
-                    var visitor = new CSharpOutputVisitor(output, FormattingOptionsFactory.CreateSharpDevelop());
-                    syntaxTree.AcceptVisitor(visitor);
-                */
+                
             }
+
+            smart.WriteLine();
         }
     }
 }

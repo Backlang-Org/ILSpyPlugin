@@ -23,8 +23,13 @@
     </Reference>
     <Reference Include="PresentationFramework">
       <HintPath>../PresentationFramework.dll</HintPath>
-    </Reference><Reference Include="PresentationCore">
+    </Reference>
+    
+    <Reference Include="PresentationCore">
       <HintPath>../PresentationCore.dll</HintPath>
+    </Reference>
+    <Reference Include="ICSharpCode.AvalonEdit">
+      <HintPath>../ICSharpCode.AvalonEdit.dll</HintPath>
     </Reference>
 </ItemGroup>
 
