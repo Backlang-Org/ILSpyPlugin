@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TargetName>Backlang.plugin</TargetName>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ICSharpCode.Decompiler" Version="7.2.1.6856" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="7.0.0" />
+    <PackageReference Include="System.Runtime" Version="4.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ILSpy">
+      <HintPath>../ILSpy.exe</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase">
+      <HintPath>../WindowsBase.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework">
+      <HintPath>../PresentationFramework.dll</HintPath>
+    </Reference><Reference Include="PresentationCore">
+      <HintPath>../PresentationCore.dll</HintPath>
+    </Reference>
+</ItemGroup>
+
+</Project>
