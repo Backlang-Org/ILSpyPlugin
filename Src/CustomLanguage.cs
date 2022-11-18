@@ -57,36 +57,44 @@ namespace Backlang.Ilspy
 
             smart.WriteLine();
 
-            if (type.Kind == TypeKind.Struct)
+            if (type.Name != "FreeFunctions")
             {
-                WriteKeyword(smart, "struct");
+                if (type.Kind == TypeKind.Struct)
+                {
+                    WriteKeyword(smart, "struct");
+                }
+                else if (type.Kind == TypeKind.Interface)
+                {
+                    WriteKeyword(smart, "interface");
+                }
+                else
+                {
+                    WriteKeyword(smart, "class");
+                }
+
+                smart.WriteReference(type, type.Name, true);
+                smart.Write(" ");
+
+                smart.MarkFoldStart();
+                smart.WriteLine("{");
+
+                smart.WriteLine();
+
+                smart.Indent();
             }
-            else if (type.Kind == TypeKind.Interface)
-            {
-                WriteKeyword(smart, "interface");
-            }
-            else
-            {
-                WriteKeyword(smart, "class");
-            }
 
-            smart.WriteReference(type, type.Name, true);
-            smart.Write(" ");
-
-            smart.MarkFoldStart();
-            smart.WriteLine("{");
-
-            smart.WriteLine();
-
-            smart.Indent();
             foreach (var method in type.Methods)
             {
                 DecompileMethod(method, smart, options);
             }
-            smart.Unindent();
 
-            smart.WriteLine("}");
-            smart.MarkFoldEnd();
+            if (type.Name != "FreeFunctions")
+            {
+                smart.Unindent();
+
+                smart.WriteLine("}");
+                smart.MarkFoldEnd();
+            }
         }
 
         private void WriteKeyword(ISmartTextOutput smart, string keyword)
@@ -146,10 +154,11 @@ namespace Backlang.Ilspy
 
             if (methodDef.HasBody())
             {
-                smart.Write(" {");
+                smart.WriteLine("{");
                 var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
-               
+
                 smart.WriteLine("}");
+                smart.MarkFoldEnd();
                 smart.WriteLine();
             }
             else
@@ -157,7 +166,6 @@ namespace Backlang.Ilspy
                 smart.Write(";");
             }
 
-            smart.MarkFoldEnd();
 
             smart.WriteLine();
         }
@@ -167,7 +175,8 @@ namespace Backlang.Ilspy
             smart.BeginSpan(typeColor);
             string typename = p.Name;
 
-            if(primitiveTypeTable.ContainsKey(typename)){
+            if (primitiveTypeTable.ContainsKey(typename))
+            {
                 typename = primitiveTypeTable[typename];
             }
 
