@@ -10,6 +10,7 @@ using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy;
 using ICSharpCode.AvalonEdit.Highlighting;
 using System.Windows.Media;
+using System.Collections.Generic;
 
 namespace Backlang.Ilspy
 {
@@ -17,8 +18,14 @@ namespace Backlang.Ilspy
     public class CustomLanguage : Language
     {
 
-        HighlightingColor gray = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.DarkGray) };
-        HighlightingColor blue = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.Blue) };
+        HighlightingColor typeColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.DarkGray) };
+        HighlightingColor keywordColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.Blue) };
+
+        private Dictionary<string, string> primitiveTypeTable = new Dictionary<string, string>()
+        {
+            {"String", "string"},
+            {"Int32", "i32"}
+        };
 
         public override string Name
         {
@@ -40,7 +47,7 @@ namespace Backlang.Ilspy
         public override void DecompileType(ITypeDefinition type, ITextOutput output, DecompilationOptions options)
         {
             var smart = (ISmartTextOutput)output;
-            if (type.Namespace != null)
+            if (!string.IsNullOrEmpty(type.Namespace))
             {
                 WriteKeyword(smart, "module");
                 smart.Write(type.Namespace + ";");
@@ -50,7 +57,19 @@ namespace Backlang.Ilspy
 
             smart.WriteLine();
 
-            WriteKeyword(smart, "class");
+            if (type.Kind == TypeKind.Struct)
+            {
+                WriteKeyword(smart, "struct");
+            }
+            else if (type.Kind == TypeKind.Interface)
+            {
+                WriteKeyword(smart, "interface");
+            }
+            else
+            {
+                WriteKeyword(smart, "class");
+            }
+
             smart.WriteReference(type, type.Name, true);
             smart.Write(" ");
 
@@ -72,7 +91,7 @@ namespace Backlang.Ilspy
 
         private void WriteKeyword(ISmartTextOutput smart, string keyword)
         {
-            smart.BeginSpan(blue);
+            smart.BeginSpan(keywordColor);
             smart.Write(keyword + " ");
             smart.EndSpan();
         }
@@ -88,7 +107,7 @@ namespace Backlang.Ilspy
 
             if (method.IsConstructor)
             {
-                smart.BeginSpan(blue);
+                smart.BeginSpan(keywordColor);
                 smart.WriteReference(method, "constructor", true);
                 smart.EndSpan();
             }
@@ -107,7 +126,7 @@ namespace Backlang.Ilspy
 
                 smart.Write(p.Name);
                 smart.Write(": ");
-                smart.WriteReference(p.Type, p.Type.Name);
+                WriteType(smart, p.Type);
 
                 if (i != method.Parameters.Count - 1)
                 {
@@ -115,17 +134,55 @@ namespace Backlang.Ilspy
                 }
             }
 
-            smart.WriteLine(") {");
-            smart.WriteLine("}");
+            smart.MarkFoldStart();
+            smart.Write(")");
+
+            if (method.ReturnType.FullName != "System.Void")
+            {
+                smart.Write(" -> ");
+                WriteType(smart, method.ReturnType);
+            }
+
 
             if (methodDef.HasBody())
             {
+                smart.Write(" {");
                 var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
-
-                
+               
+                smart.WriteLine("}");
+                smart.WriteLine();
+            }
+            else
+            {
+                smart.Write(";");
             }
 
+            smart.MarkFoldEnd();
+
             smart.WriteLine();
+        }
+
+        private void WriteType(ISmartTextOutput smart, IType p)
+        {
+            smart.BeginSpan(typeColor);
+            string typename = p.Name;
+
+            if(primitiveTypeTable.ContainsKey(typename)){
+                typename = primitiveTypeTable[typename];
+            }
+
+            smart.WriteReference(p, typename);
+            smart.EndSpan();
+        }
+
+        public override string TypeToString(IType type, bool includeNamespace)
+        {
+            return type.FullName;
+        }
+
+        public override string MethodToString(IMethod method, bool includeDeclaringTypeName, bool includeNamespace, bool includeNamespaceOfDeclaringTypeName)
+        {
+            return method.FullName;
         }
     }
 }
