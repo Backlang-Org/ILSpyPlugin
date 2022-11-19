@@ -1,16 +1,13 @@
 ﻿using System.ComponentModel.Composition;
 using System.Reflection.Metadata;
-using System.Windows.Controls;
-
 using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.IL;
-using ICSharpCode.Decompiler.Metadata;
-using ICSharpCode.Decompiler.Solution;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy;
 using ICSharpCode.AvalonEdit.Highlighting;
 using System.Windows.Media;
 using System.Collections.Generic;
+using System;
+using System.Windows.Navigation;
 
 namespace Backlang.Ilspy
 {
@@ -18,13 +15,14 @@ namespace Backlang.Ilspy
     public class CustomLanguage : Language
     {
 
-        HighlightingColor typeColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.DarkGray) };
-        HighlightingColor keywordColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.Blue) };
+        readonly HighlightingColor typeColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.LightBlue) };
+        readonly HighlightingColor keywordColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.Blue) };
 
-        private Dictionary<string, string> primitiveTypeTable = new Dictionary<string, string>()
+        private readonly Dictionary<string, string> primitiveTypeTable = new Dictionary<string, string>()
         {
             {"String", "string"},
-            {"Int32", "i32"}
+            {"Int32", "i32"},
+            {"Int64", "i64"},
         };
 
         public override string Name
@@ -35,18 +33,14 @@ namespace Backlang.Ilspy
             }
         }
 
-        public override string FileExtension
-        {
-            get
-            {
-                // used in 'Save As' dialog
-                return ".back";
-            }
-        }
+        public override string FileExtension => ".back";
+
+        public override string ProjectFileExtension => ".backproj";
 
         public override void DecompileType(ITypeDefinition type, ITextOutput output, DecompilationOptions options)
         {
-            var smart = (ISmartTextOutput)output;
+            var smart = output as ISmartTextOutput;
+
             if (!string.IsNullOrEmpty(type.Namespace))
             {
                 WriteKeyword(smart, "module");
@@ -54,8 +48,16 @@ namespace Backlang.Ilspy
             }
 
             smart.WriteLine();
-
             smart.WriteLine();
+
+            if (type.IsAbstract)
+            {
+                WriteKeyword(smart, "abstract");
+            }
+            if (type.IsStatic)
+            {
+                WriteKeyword(smart, "static");
+            }
 
             if (type.Name != "FreeFunctions")
             {
@@ -83,6 +85,12 @@ namespace Backlang.Ilspy
                 smart.Indent();
             }
 
+            foreach(var field in type.Fields) {
+                DecompileField(field, output, options);
+            }
+
+            smart.WriteLine();
+
             foreach (var method in type.Methods)
             {
                 DecompileMethod(method, smart, options);
@@ -97,6 +105,16 @@ namespace Backlang.Ilspy
             }
         }
 
+        public override RichText GetRichTextTooltip(IEntity entity)
+        {
+            return new RichText(entity.Name);
+        }
+
+        public override string PropertyToString(IProperty property, bool includeDeclaringTypeName, bool includeNamespace, bool includeNamespaceOfDeclaringTypeName)
+        {
+            return property.FullName;
+        }
+
         private void WriteKeyword(ISmartTextOutput smart, string keyword)
         {
             smart.BeginSpan(keywordColor);
@@ -104,14 +122,31 @@ namespace Backlang.Ilspy
             smart.EndSpan();
         }
 
+        public override void DecompileField(IField field, ITextOutput output, DecompilationOptions options)
+        {
+            var smart = output as ISmartTextOutput;
 
-        // There are several methods available to override; in this sample, we deal with methods only
+            WriteKeyword(smart, "let");
+            smart.WriteReference(field, field.Name, true);
+            smart.Write(": ");
+            WriteType(smart, field.Type);
+
+            smart.WriteLine(";");
+        }
+
         public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
         {
             var smart = (ISmartTextOutput)output;
 
             var module = ((MetadataModule)method.ParentModule).PEFile;
             var methodDef = module.Metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);
+
+            if(method.IsAbstract){
+                WriteKeyword(smart, "abstract");
+            }
+            if(method.IsStatic) {
+                WriteKeyword(smart, "static");
+            }
 
             if (method.IsConstructor)
             {
@@ -124,7 +159,6 @@ namespace Backlang.Ilspy
                 WriteKeyword(smart, "func");
                 smart.WriteReference(method, method.Name, true);
             }
-
 
             smart.Write("(");
 
@@ -151,10 +185,9 @@ namespace Backlang.Ilspy
                 WriteType(smart, method.ReturnType);
             }
 
-
             if (methodDef.HasBody())
             {
-                smart.WriteLine("{");
+                smart.WriteLine(" {");
                 var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
 
                 smart.WriteLine("}");
@@ -165,7 +198,6 @@ namespace Backlang.Ilspy
             {
                 smart.Write(";");
             }
-
 
             smart.WriteLine();
         }
@@ -192,6 +224,16 @@ namespace Backlang.Ilspy
         public override string MethodToString(IMethod method, bool includeDeclaringTypeName, bool includeNamespace, bool includeNamespaceOfDeclaringTypeName)
         {
             return method.FullName;
+        }
+
+        public override string FieldToString(IField field, bool includeDeclaringTypeName, bool includeNamespace, bool includeNamespaceOfDeclaringTypeName)
+        {
+            return field.FullName;
+        }
+
+        public override string GetTooltip(IEntity entity)
+        {
+            return entity.FullName;
         }
     }
 }
