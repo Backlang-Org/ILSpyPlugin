@@ -6,8 +6,7 @@ using ICSharpCode.ILSpy;
 using ICSharpCode.AvalonEdit.Highlighting;
 using System.Windows.Media;
 using System.Collections.Generic;
-using System;
-using System.Windows.Navigation;
+using ICSharpCode.Decompiler.Disassembler;
 
 namespace Backlang.Ilspy
 {
@@ -131,6 +130,13 @@ namespace Backlang.Ilspy
             smart.Write(": ");
             WriteType(smart, field.Type);
 
+            var value = field.GetConstantValue();
+
+            if(value != null) {
+                smart.Write(" = ");
+                smart.WriteLine(value.ToString());
+            }
+
             smart.WriteLine(";");
         }
 
@@ -189,6 +195,20 @@ namespace Backlang.Ilspy
             {
                 smart.WriteLine(" {");
                 var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
+
+                smart.Indent();
+
+                var blob = methodBody.GetILReader();
+                while (blob.RemainingBytes > 0)
+                {
+                    var code = blob.DecodeOpCode();
+                    switch (code)
+                    {
+                       default: break;
+                    }
+                }
+
+                smart.Unindent();
 
                 smart.WriteLine("}");
                 smart.MarkFoldEnd();
