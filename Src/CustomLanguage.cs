@@ -89,7 +89,10 @@ namespace Backlang.Ilspy
 
                 WriteType(smart, type, true);
 
-                var baseTypes = type.GetAllBaseTypes().Where(_ => _.FullName != "System.Object" && _ != type).ToArray();
+                var baseTypes = type.GetAllBaseTypes()                    .Where(_ => _.FullName != "System.Object" 
+                                && _ != type && _.FullName != "System.Enum" 
+                                && _.FullName != "System.ValueType").ToArray();
+
                 if (baseTypes.Any())
                 {
                     smart.Write(" : ");
