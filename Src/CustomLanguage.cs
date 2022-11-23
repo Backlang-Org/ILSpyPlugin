@@ -3,8 +3,6 @@ using System.Reflection.Metadata;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy;
-using ICSharpCode.AvalonEdit.Highlighting;
-using System.Windows.Media;
 using System.Collections.Generic;
 using ICSharpCode.Decompiler.Disassembler;
 
@@ -13,15 +11,22 @@ namespace Backlang.Ilspy
     [Export(typeof(Language))]
     public class CustomLanguage : Language
     {
-
-        readonly HighlightingColor typeColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.LightBlue) };
-        readonly HighlightingColor keywordColor = new HighlightingColor { Foreground = new SimpleHighlightingBrush(Colors.Blue) };
-
         private readonly Dictionary<string, string> primitiveTypeTable = new Dictionary<string, string>()
         {
+            {"Boolean", "bool"},
+            {"Object", "obj"},
+
             {"String", "string"},
+            {"Char",   "char"},
+
+            {"Byte",   "i8"},
+            {"Int16", "i16"},
             {"Int32", "i32"},
             {"Int64", "i64"},
+
+            {"Half", "f16"},
+            {"Float", "f32"},
+            {"Double", "f64"},
         };
 
         public override string Name
@@ -43,23 +48,27 @@ namespace Backlang.Ilspy
             if (!string.IsNullOrEmpty(type.Namespace))
             {
                 WriteKeyword(smart, "module");
-                smart.Write(type.Namespace + ";");
+                smart.WriteLine(type.Namespace + ";");
             }
-
             smart.WriteLine();
-            smart.WriteLine();
-
-            if (type.IsAbstract)
-            {
-                WriteKeyword(smart, "abstract");
-            }
-            if (type.IsStatic)
-            {
-                WriteKeyword(smart, "static");
-            }
 
             if (type.Name != "FreeFunctions")
             {
+                WriteAccessibility(type.Accessibility, smart);
+
+                if (type.IsSealed)
+                {
+                    WriteKeyword(smart, "sealed");
+                }
+                if (type.IsStatic)
+                {
+                    WriteKeyword(smart, "static");
+                }
+                if (type.IsAbstract)
+                {
+                    WriteKeyword(smart, "abstract");
+                }
+
                 if (type.Kind == TypeKind.Struct)
                 {
                     WriteKeyword(smart, "struct");
@@ -68,23 +77,27 @@ namespace Backlang.Ilspy
                 {
                     WriteKeyword(smart, "interface");
                 }
+                else if (type.Kind == TypeKind.Enum)
+                {
+                    WriteKeyword(smart, "enum");
+                }
                 else
                 {
                     WriteKeyword(smart, "class");
                 }
 
-                smart.WriteReference(type, type.Name, true);
-                smart.Write(" ");
+                WriteType(smart, type, true);
 
                 smart.MarkFoldStart();
-                smart.WriteLine("{");
+                smart.WriteLine(" {");
 
                 smart.WriteLine();
 
                 smart.Indent();
             }
 
-            foreach(var field in type.Fields) {
+            foreach (var field in type.Fields)
+            {
                 DecompileField(field, output, options);
             }
 
@@ -99,14 +112,9 @@ namespace Backlang.Ilspy
             {
                 smart.Unindent();
 
-                smart.WriteLine("}");
                 smart.MarkFoldEnd();
+                smart.WriteLine("}");
             }
-        }
-
-        public override RichText GetRichTextTooltip(IEntity entity)
-        {
-            return new RichText(entity.Name);
         }
 
         public override string PropertyToString(IProperty property, bool includeDeclaringTypeName, bool includeNamespace, bool includeNamespaceOfDeclaringTypeName)
@@ -116,7 +124,7 @@ namespace Backlang.Ilspy
 
         private void WriteKeyword(ISmartTextOutput smart, string keyword)
         {
-            smart.BeginSpan(keywordColor);
+            smart.BeginSpan(Colors.KeywordColor);
             smart.Write(keyword + " ");
             smart.EndSpan();
         }
@@ -125,38 +133,73 @@ namespace Backlang.Ilspy
         {
             var smart = output as ISmartTextOutput;
 
+            WriteAccessibility(field.Accessibility, smart);
+
             WriteKeyword(smart, "let");
+
+            if (!field.IsReadOnly)
+            {
+                WriteKeyword(smart, "mut");
+            }
+
             smart.WriteReference(field, field.Name, true);
             smart.Write(": ");
             WriteType(smart, field.Type);
 
             var value = field.GetConstantValue();
 
-            if(value != null) {
+            if (value != null)
+            {
                 smart.Write(" = ");
-                smart.WriteLine(value.ToString());
+
+                WriteValue(smart, value);
             }
 
             smart.WriteLine(";");
         }
 
+        private void WriteValue(ISmartTextOutput smart, object value)
+        {
+            if (value is string s)
+            {
+                smart.BeginSpan(Colors.StringColor);
+                smart.Write('"' + s.Replace("\"", "\\\"") + '"');
+                smart.EndSpan();
+            }
+            else if (value is char c)
+            {
+                smart.BeginSpan(Colors.StringColor);
+                smart.Write("'" + c + "'");
+                smart.EndSpan();
+            }
+            else if (value is bool b)
+            {
+                WriteKeyword(smart, b.ToString().ToLower());
+            }
+            else
+            {
+                smart.Write(value.ToString());
+            }
+        }
+
         public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
         {
-            var smart = (ISmartTextOutput)output;
+            var smart = output as ISmartTextOutput;
 
-            var module = ((MetadataModule)method.ParentModule).PEFile;
-            var methodDef = module.Metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);
+            WriteAccessibility(method.Accessibility, smart);
 
-            if(method.IsAbstract){
+            if (method.IsAbstract)
+            {
                 WriteKeyword(smart, "abstract");
             }
-            if(method.IsStatic) {
+            if (method.IsStatic)
+            {
                 WriteKeyword(smart, "static");
             }
 
             if (method.IsConstructor)
             {
-                smart.BeginSpan(keywordColor);
+                smart.BeginSpan(Colors.KeywordColor);
                 smart.WriteReference(method, "constructor", true);
                 smart.EndSpan();
             }
@@ -191,9 +234,12 @@ namespace Backlang.Ilspy
                 WriteType(smart, method.ReturnType);
             }
 
-            if (methodDef.HasBody())
+            var module = method.ParentModule.PEFile;
+
+            if (method.HasBody)
             {
                 smart.WriteLine(" {");
+                var methodDef = module.Metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);
                 var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
 
                 smart.Indent();
@@ -204,14 +250,14 @@ namespace Backlang.Ilspy
                     var code = blob.DecodeOpCode();
                     switch (code)
                     {
-                       default: break;
+                        default: break;
                     }
                 }
 
                 smart.Unindent();
 
-                smart.WriteLine("}");
                 smart.MarkFoldEnd();
+                smart.WriteLine("}");
                 smart.WriteLine();
             }
             else
@@ -222,9 +268,29 @@ namespace Backlang.Ilspy
             smart.WriteLine();
         }
 
-        private void WriteType(ISmartTextOutput smart, IType p)
+        private void WriteAccessibility(Accessibility access, ISmartTextOutput smart)
         {
-            smart.BeginSpan(typeColor);
+            if (access == Accessibility.Public)
+            {
+                WriteKeyword(smart, "public");
+            }
+            else if (access == Accessibility.Private)
+            {
+                WriteKeyword(smart, "private");
+            }
+            else if (access == Accessibility.Internal)
+            {
+                WriteKeyword(smart, "internal");
+            }
+            else if (access == Accessibility.Protected)
+            {
+                WriteKeyword(smart, "protected");
+            }
+        }
+
+        private void WriteType(ISmartTextOutput smart, IType p, bool isDefinition = false)
+        {
+            smart.BeginSpan(Colors.TypeColor);
             string typename = p.Name;
 
             if (primitiveTypeTable.ContainsKey(typename))
@@ -232,7 +298,7 @@ namespace Backlang.Ilspy
                 typename = primitiveTypeTable[typename];
             }
 
-            smart.WriteReference(p, typename);
+            smart.WriteReference(p, typename, isDefinition);
             smart.EndSpan();
         }
 
