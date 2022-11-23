@@ -90,14 +90,17 @@ namespace Backlang.Ilspy
                 WriteType(smart, type, true);
 
                 var baseTypes = type.GetAllBaseTypes().Where(_ => _.FullName != "System.Object" && _ != type).ToArray();
-                if(baseTypes.Any()) {
+                if (baseTypes.Any())
+                {
                     smart.Write(" : ");
-                    for (int i = 0; i < baseTypes.Length; i++) {
+                    for (int i = 0; i < baseTypes.Length; i++)
+                    {
                         var bt = baseTypes[i];
 
                         WriteType(smart, bt);
-                        
-                        if(i < baseTypes.Length - 1) {
+
+                        if (i < baseTypes.Length - 1)
+                        {
                             smart.Write(", ");
                         }
                     }
@@ -117,6 +120,25 @@ namespace Backlang.Ilspy
             }
 
             smart.WriteLine();
+
+
+
+            if (type.Name != "FreeFunctions")
+            {
+                smart.Unindent();
+
+                smart.MarkFoldEnd();
+                smart.WriteLine("}");
+
+                smart.WriteLine();
+
+                smart.MarkFoldStart();
+                WriteKeyword(smart, "implement");
+                WriteType(smart, type);
+                smart.WriteLine(" {");
+
+                smart.Indent();
+            }
 
             foreach (var method in type.Methods)
             {
