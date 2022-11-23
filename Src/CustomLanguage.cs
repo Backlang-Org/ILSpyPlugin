@@ -5,6 +5,7 @@ using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy;
 using System.Collections.Generic;
 using ICSharpCode.Decompiler.Disassembler;
+using System.Linq;
 
 namespace Backlang.Ilspy
 {
@@ -87,6 +88,20 @@ namespace Backlang.Ilspy
                 }
 
                 WriteType(smart, type, true);
+
+                var baseTypes = type.GetAllBaseTypes().Where(_ => _.FullName != "System.Object" && _ != type).ToArray();
+                if(baseTypes.Any()) {
+                    smart.Write(" : ");
+                    for (int i = 0; i < baseTypes.Length; i++) {
+                        var bt = baseTypes[i];
+
+                        WriteType(smart, bt);
+                        
+                        if(i < baseTypes.Length - 1) {
+                            smart.Write(", ");
+                        }
+                    }
+                }
 
                 smart.MarkFoldStart();
                 smart.WriteLine(" {");
