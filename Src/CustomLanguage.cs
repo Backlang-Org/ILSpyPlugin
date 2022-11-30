@@ -89,8 +89,8 @@ namespace Backlang.Ilspy
 
                 WriteType(smart, type, true);
 
-                var baseTypes = type.GetAllBaseTypes()                    .Where(_ => _.FullName != "System.Object" 
-                                && _ != type && _.FullName != "System.Enum" 
+                var baseTypes = type.GetAllBaseTypes().Where(_ => _.FullName != "System.Object"
+                                && _ != type && _.FullName != "System.Enum"
                                 && _.FullName != "System.ValueType").ToArray();
 
                 if (baseTypes.Any())
@@ -237,8 +237,13 @@ namespace Backlang.Ilspy
                 WriteKeyword(smart, "static");
             }
 
-            if(method.IsOverride) {
+            if (method.IsOverride)
+            {
                 WriteKeyword(smart, "override");
+            }
+            if (method.IsOperator)
+            {
+                WriteKeyword(smart, "operator");
             }
 
             if (method.IsConstructor)
