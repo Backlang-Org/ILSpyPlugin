@@ -6,6 +6,7 @@ using ICSharpCode.ILSpy;
 using System.Collections.Generic;
 using ICSharpCode.Decompiler.Disassembler;
 using System.Linq;
+using System;
 
 namespace Backlang.Ilspy
 {
@@ -55,6 +56,8 @@ namespace Backlang.Ilspy
 
             if (type.Name != "FreeFunctions")
             {
+                WriteAnnotations(smart, type.GetAttributes());
+
                 WriteAccessibility(type.Accessibility, smart);
 
                 if (type.IsSealed)
@@ -227,6 +230,8 @@ namespace Backlang.Ilspy
             var smart = output as ISmartTextOutput;
             var methodName = method.Name;
 
+            WriteAnnotations(smart, method.GetAttributes());
+
             WriteAccessibility(method.Accessibility, smart);
 
             if (method.IsAbstract)
@@ -317,6 +322,44 @@ namespace Backlang.Ilspy
             }
 
             smart.WriteLine();
+        }
+
+        private void WriteAnnotations(ISmartTextOutput output, IEnumerable<IAttribute> annotations)
+        {
+            output.MarkFoldStart();
+
+            foreach(var annotation in annotations) {
+                output.BeginSpan(Colors.AnnotationColor);
+                output.Write("@");
+                WriteType(output, annotation.AttributeType);
+
+                if(annotation.FixedArguments.Length > 0) {
+                    output.Write("(");
+                }
+
+                for (int i = 0; i < annotation.FixedArguments.Length; i++)
+                {
+                    var argument = annotation.FixedArguments[i];
+
+                    WriteValue(output, argument.Value);
+
+                    if (i < annotation.FixedArguments.Length)
+                    {
+                        output.Write(", ");
+                    }
+                }
+
+                if (annotation.FixedArguments.Length > 0)
+                {
+                    output.Write(")");
+                }
+
+                output.WriteLine();
+
+                output.EndSpan();
+            }
+
+            output.MarkFoldEnd();
         }
 
         private void WriteAccessibility(Accessibility access, ISmartTextOutput smart)
