@@ -331,7 +331,7 @@ namespace Backlang.Ilspy
             foreach(var annotation in annotations) {
                 output.BeginSpan(Colors.AnnotationColor);
                 output.Write("@");
-                WriteType(output, annotation.AttributeType);
+                output.WriteReference(annotation.AttributeType, annotation.AttributeType.Name.Replace("Attribute", ""));
 
                 if(annotation.FixedArguments.Length > 0) {
                     output.Write("(");
