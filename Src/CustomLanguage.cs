@@ -237,6 +237,10 @@ namespace Backlang.Ilspy
                 WriteKeyword(smart, "static");
             }
 
+            if(method.IsOverride) {
+                WriteKeyword(smart, "override");
+            }
+
             if (method.IsConstructor)
             {
                 smart.BeginSpan(Colors.KeywordColor);
