@@ -225,6 +225,7 @@ namespace Backlang.Ilspy
         public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
         {
             var smart = output as ISmartTextOutput;
+            var methodName = method.Name;
 
             WriteAccessibility(method.Accessibility, smart);
 
@@ -244,6 +245,7 @@ namespace Backlang.Ilspy
             if (method.IsOperator)
             {
                 WriteKeyword(smart, "operator");
+                methodName = methodName.Replace("op_", "");
             }
 
             if (method.IsConstructor)
@@ -255,7 +257,7 @@ namespace Backlang.Ilspy
             else
             {
                 WriteKeyword(smart, "func");
-                smart.WriteReference(method, method.Name, true);
+                smart.WriteReference(method, methodName, true);
             }
 
             smart.Write("(");
